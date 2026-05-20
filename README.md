@@ -4,6 +4,8 @@
 
 ![GPS-Denied Multi-UAV LiDAR Navigation Simulator](https://github.com/1Px-Vision/AeroSwarm/blob/main/Simulator_AeroSwarm.jpg)
 
+[▶ Watch the drone simulator demo on Kapwing](https://www.kapwing.com/e/6a0d77e5d12f18688bafd8ab) 
+
 ## Overview
 
 This project implements a **GPS-denied multi-UAV navigation simulator** for testing autonomous drone agents in complex environments. The simulator includes a leader drone and two follower drones flying in a V-formation. The leader uses a simulated **360° LiDAR sensor**, onboard camera view, waypoint navigation, and communication telemetry to guide the swarm through obstacle-rich scenarios.
