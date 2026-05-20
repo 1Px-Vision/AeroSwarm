@@ -205,3 +205,44 @@ The dashboard shows the planned path, drone positions, goal point, obstacles, an
 * The follower drones receive telemetry and maintain V-formation.
 * The sniffer monitors packet quality.
 * The mission continues until the swarm reaches the goal or the user stops the simulation.
+
+---
+
+## Project Structure
+
+Example project structure:
+```
+gps-denied-multi-uav-lidar-simulator/
+│
+├── README.md
+├── gps_denied_multi_uav_lidar_simulator.py
+├── config.py
+├── agents/
+│   ├── leader_agent.py
+│   ├── follower_agent.py
+│   └── llm_policy_agent.py
+│
+├── sensors/
+│   ├── lidar_sensor.py
+│   ├── camera_sensor.py
+│   └── communication_sensor.py
+│
+├── scenarios/
+│   ├── corridor_scenario.py
+│   ├── forest_scenario.py
+│   └── obstacle_field.py
+│
+├── docs/
+│   └── simulator_dashboard.png
+│
+└── outputs/
+    ├── telemetry.csv
+    └── mission_log.json
+
+```
+    
+--- 
+
+## Author
+
+Developed for research on GPS-denied autonomous multi-UAV navigation, LiDAR sensing, communication-aware swarm control, and drone-agent simulation.
