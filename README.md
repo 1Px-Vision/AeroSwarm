@@ -4,7 +4,7 @@
 
 ![GPS-Denied Multi-UAV LiDAR Navigation Simulator](https://github.com/1Px-Vision/AeroSwarm/blob/main/Simulator_AeroSwarm.jpg)
 
-[▶ Watch the drone simulator demo on Kapwing](https://www.kapwing.com/e/6a0d77e5d12f18688bafd8ab) 
+[▶ Drone simulator demo](https://www.kapwing.com/e/6a0d77e5d12f18688bafd8ab) 
 
 ## Overview
 
