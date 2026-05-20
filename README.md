@@ -2,7 +2,7 @@
 
 # GPS-Denied Multi-UAV LiDAR Navigation Simulator
 
-![GPS-Denied Multi-UAV LiDAR Navigation Simulator](docs/simulator_dashboard.png)
+![GPS-Denied Multi-UAV LiDAR Navigation Simulator]([docs/simulator_dashboard.png](https://github.com/1Px-Vision/AeroSwarm/blob/main/Simulator_AeroSwarm.jpg))
 
 ## Overview
 
