@@ -66,3 +66,42 @@ Example LiDAR status shown in the simulator:
 ```text
 LiDAR F/L/R: 1.79 / 0.90 / 0.03 m
 LiDAR status: CAUTION
+```
+---
+
+## Drone-to-Drone Communication
+
+The leader broadcasts its current state to the follower drones. The simulator visualizes communication transfer in real time.
+
+Telemetry includes:
+
+* Leader position
+* Leader velocity
+* Active waypoint
+* LiDAR status
+* Packet delivery ratio
+* Latency
+* RSSI
+* Packet age
+* Communication health
+
+Example communication log:
+```
+Leader waypoint + LiDAR transfer
+
+TX L pos=(-0.98,+0.70,+1.00)
+speed=0.96 m/s
+Waypoint[2]=(-0.24,+1.16,+1.00)
+LiDAR F/L/R: 1.79/0.90/0.03 m
+
+-> F_left | RX/LOS | PDR=99.0%
+RSSI=-43.7 dBm | LAT=10.9 ms | AGE=0.06 s
+
+-> F_right | RX/LOS | PDR=96.1%
+RSSI=-44.5 dBm | LAT=13.6 ms | AGE=0.06 s
+
+```
+
+## Simulator Interface
+
+The graphical interface is organized into several tabs.
