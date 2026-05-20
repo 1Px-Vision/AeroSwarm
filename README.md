@@ -105,3 +105,48 @@ RSSI=-44.5 dBm | LAT=13.6 ms | AGE=0.06 s
 ## Simulator Interface
 
 The graphical interface is organized into several tabs.
+
+### Tab 1: Navigation + Mapping
+
+This tab shows the main simulation dashboard:
+
+* Leader camera
+* Left follower camera
+* Right follower camera
+* Drone HUD displays
+* Swarm scenario map
+* Leader-to-follower telemetry panel
+* Mission timer
+* Start, Stop, and Close buttons
+
+### Tab 2: LiDAR + Communication Overlay
+
+This tab is used to inspect LiDAR scanning and communication behavior in more detail:
+
+* LiDAR rays
+* Obstacle detection
+* Communication links
+* Packet transfer status
+* Drone formation state
+
+### Tab 3: Sniffer
+
+The sniffer tab is used to monitor communication packets between the leader and the follower drones.
+
+It can be used to debug:
+
+* Packet delivery
+* Packet loss
+* RSSI level
+* Latency
+* Communication state
+* Follower update timing
+
+### Tab 4: Help Simulator
+
+The help tab provides simulator instructions, control explanation, and mission information.
+
+___ 
+## Sensors Included
+
+The simulator can include the following virtual sensors:
