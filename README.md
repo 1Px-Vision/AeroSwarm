@@ -150,3 +150,12 @@ ___
 ## Sensors Included
 
 The simulator can include the following virtual sensors:
+
+| Sensor               | Description                                               |
+| -------------------- | --------------------------------------------------------- |
+| LiDAR                | 360° ray-based obstacle detection around the leader drone |
+| Camera               | Simulated onboard view for each drone                     |
+| IMU                  | Optional inertial information for GPS-denied navigation   |
+| VIO                  | Optional visual-inertial odometry estimation              |
+| Communication sensor | Simulates packet transfer between drones                  |
+| Sniffer              | Monitors drone-to-drone communication packets             |
