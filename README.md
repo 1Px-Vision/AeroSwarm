@@ -196,3 +196,12 @@ The leader detects blocked regions and adjusts navigation based on front, left, 
 
 The dashboard shows the planned path, drone positions, goal point, obstacles, and current mission status.
 
+### Example Mission Flow
+* Start the simulator.
+* The leader drone begins following the planned waypoint path.
+* The LiDAR sensor scans the environment.
+* The leader estimates obstacle distance and navigation state.
+* The leader broadcasts position, velocity, waypoint, and LiDAR status.
+* The follower drones receive telemetry and maintain V-formation.
+* The sniffer monitors packet quality.
+* The mission continues until the swarm reaches the goal or the user stops the simulation.
