@@ -146,7 +146,8 @@ It can be used to debug:
 
 The help tab provides simulator instructions, control explanation, and mission information.
 
-___ 
+---
+
 ## Sensors Included
 
 The simulator can include the following virtual sensors:
@@ -159,3 +160,39 @@ The simulator can include the following virtual sensors:
 | VIO                  | Optional visual-inertial odometry estimation              |
 | Communication sensor | Simulates packet transfer between drones                  |
 | Sniffer              | Monitors drone-to-drone communication packets             |
+
+## Supported Drones
+
+The default simulation uses three drones:
+
+| Drone          | Role                  | Function                                           |
+| -------------- | --------------------- | -------------------------------------------------- |
+| Leader         | Main navigation agent | Follows waypoints and scans environment with LiDAR |
+| Left follower  | Formation agent       | Tracks leader from the left side                   |
+| Right follower | Formation agent       | Tracks leader from the right side                  |
+
+
+## Supported Scenarios
+
+The simulator can be used to test different GPS-denied mission scenarios.
+
+**1. Obstacle-Rich Navigation**
+
+The leader navigates an environment with walls, cylinders, or other artificial obstacles, while the LiDAR detects potential collision zones.
+
+**2. Swarm Formation Flight**
+
+The leader and follower drones maintain a V-formation as they move toward the goal.
+
+**3. Communication Degradation**
+
+The simulator can emulate packet loss, latency, RSSI degradation, and stale telemetry.
+
+**4. LiDAR-Based Avoidance**
+
+The leader detects blocked regions and adjusts navigation based on front, left, and right LiDAR measurements.
+
+**5. Mapping and Mission Monitoring**
+
+The dashboard shows the planned path, drone positions, goal point, obstacles, and current mission status.
+
