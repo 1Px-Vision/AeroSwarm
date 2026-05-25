@@ -19,6 +19,12 @@ The system is designed for research and prototyping in:
 - Swarm formation control
 - Autonomous mapping and telemetry visualization
 
+
+
+![](https://github.com/1Px-Vision/AeroSwarm/blob/main/HTML_DQN%2BADRC.jpg)
+
+
+
 ---
 
 ## Main Features
