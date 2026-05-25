@@ -1,0 +1,2472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>3D Drone Navigation Simulator with Single/Swarm, LiDAR, SLAM, Depth and DRL Navigation</title>
+
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0a121d;
+      --panel:rgba(10,18,31,.80);
+      --panel2:rgba(5,10,18,.72);
+      --line:rgba(255,255,255,.14);
+      --text:#ecf6ff;
+      --muted:#9db4cc;
+      --blue:#2aa8ff;
+      --green:#31ff72;
+      --red:#ff4d57;
+      --yellow:#ffd54a;
+      --cyan:#19e1ff;
+      --orange:#ff9e3d;
+    }
+
+    *{box-sizing:border-box;}
+
+    body{
+      margin:0;
+      background:var(--bg);
+      overflow:hidden;
+      color:var(--text);
+      font-family:Arial, Helvetica, sans-serif;
+      user-select:none;
+    }
+
+    #app{
+      position:fixed;
+      inset:0;
+    }
+
+    #three{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      display:block;
+      background:#bfc8cd;
+    }
+
+    .title-panel{
+      position:absolute;
+      top:12px;
+      left:12px;
+      width:360px;
+      z-index:10;
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:12px 14px;
+      backdrop-filter:blur(8px);
+      box-shadow:0 12px 30px rgba(0,0,0,.38);
+    }
+
+    .title-panel h1{
+      margin:0;
+      font-size:18px;
+      line-height:1.15;
+    }
+
+    .title-panel p{
+      margin:6px 0 0 0;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.4;
+    }
+
+    .time-panel{
+      position:absolute;
+      top:10px;
+      left:50%;
+      transform:translateX(-50%);
+      z-index:10;
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:8px 12px;
+      font-family:Consolas, monospace;
+      font-size:13px;
+      display:flex;
+      gap:14px;
+      backdrop-filter:blur(8px);
+      box-shadow:0 12px 30px rgba(0,0,0,.35);
+    }
+
+    .toolbar{
+      position:absolute;
+      top:10px;
+      right:12px;
+      z-index:10;
+      display:flex;
+      align-items:center;
+      gap:7px;
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:7px;
+      backdrop-filter:blur(8px);
+      box-shadow:0 12px 30px rgba(0,0,0,.35);
+    }
+
+    button{
+      border:1px solid rgba(255,255,255,.16);
+      border-radius:9px;
+      padding:8px 10px;
+      color:white;
+      background:#1a2f4d;
+      font-weight:700;
+      font-size:12px;
+      cursor:pointer;
+    }
+
+    button:hover{background:#27456d;}
+    button.primary{background:#0e6bb9;border-color:#2aa8ff;}
+    button.good{background:#166e3f;border-color:#31ff72;}
+    button.warn{background:#70500c;border-color:#ffd54a;}
+    button.danger{background:#7a2020;border-color:#ff6464;}
+
+    .pause-icon{
+      width:42px;
+      height:42px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:10px;
+      background:rgba(0,0,0,.48);
+      border:1px solid rgba(255,255,255,.16);
+      font-size:24px;
+      line-height:1;
+      cursor:pointer;
+    }
+
+    .right-panel{
+      position:absolute;
+      top:66px;
+      right:12px;
+      bottom:12px;
+      width:332px;
+      z-index:10;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      overflow:auto;
+    }
+
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:12px;
+      backdrop-filter:blur(8px);
+      box-shadow:0 12px 30px rgba(0,0,0,.35);
+    }
+
+    .card h3{
+      margin:0 0 9px 0;
+      font-size:13px;
+      text-transform:uppercase;
+      letter-spacing:.4px;
+    }
+
+    .metrics{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+    }
+
+    .metric{
+      background:var(--panel2);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:12px;
+      padding:9px;
+      min-height:60px;
+    }
+
+    .metric .k{
+      color:var(--muted);
+      font-size:10px;
+      margin-bottom:5px;
+      text-transform:uppercase;
+      letter-spacing:.35px;
+    }
+
+    .metric .v{
+      font-size:17px;
+      font-weight:800;
+      color:white;
+      font-variant-numeric:tabular-nums;
+    }
+
+    .slider-row{
+      display:grid;
+      grid-template-columns:82px 1fr 48px;
+      gap:8px;
+      align-items:center;
+      margin-top:10px;
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    input[type="range"]{width:100%;}
+
+    .canvas-card{
+      display:grid;
+      gap:9px;
+    }
+
+    .viz-title{
+      font-size:11px;
+      color:var(--muted);
+      text-transform:uppercase;
+      letter-spacing:.35px;
+    }
+
+    canvas.info-canvas{
+      width:100%;
+      height:auto;
+      display:block;
+      background:#081120;
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:12px;
+    }
+
+    .bottom-center{
+      position:absolute;
+      left:50%;
+      transform:translateX(-50%);
+      bottom:12px;
+      z-index:10;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      flex-wrap:wrap;
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:9px 12px;
+      backdrop-filter:blur(8px);
+      box-shadow:0 12px 30px rgba(0,0,0,.35);
+    }
+
+    .hud-item{
+      font-size:13px;
+      white-space:nowrap;
+      color:#dcebff;
+      font-variant-numeric:tabular-nums;
+    }
+
+    .hud-item b{color:white;}
+
+    .bottom-left{
+      position:absolute;
+      left:12px;
+      bottom:12px;
+      z-index:10;
+      width:360px;
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:12px;
+      backdrop-filter:blur(8px);
+      box-shadow:0 12px 30px rgba(0,0,0,.35);
+    }
+
+    .legend{
+      display:grid;
+      grid-template-columns:14px 1fr;
+      gap:8px;
+      align-items:center;
+      margin-top:8px;
+      font-size:12px;
+      color:#d7e8fb;
+    }
+
+    .swatch{
+      width:14px;
+      height:14px;
+      border-radius:4px;
+      border:1px solid rgba(255,255,255,.35);
+    }
+
+    .log{
+      margin-top:9px;
+      height:104px;
+      overflow:auto;
+      background:rgba(0,0,0,.34);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:10px;
+      padding:8px;
+      font-family:Consolas, monospace;
+      font-size:11px;
+      color:#cfe7ff;
+      line-height:1.45;
+    }
+
+    .small{
+      color:var(--muted);
+      font-size:11px;
+      line-height:1.35;
+      margin-top:8px;
+    }
+
+    .telemetry-mode-card{
+      transition:opacity .2s ease, transform .2s ease;
+    }
+
+    .telemetry-table{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:7px;
+      margin-top:8px;
+    }
+
+    .telemetry-row{
+      background:rgba(5,10,18,.62);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:10px;
+      padding:8px;
+      min-height:48px;
+    }
+
+    .telemetry-row .k{
+      color:var(--muted);
+      font-size:10px;
+      text-transform:uppercase;
+      letter-spacing:.3px;
+      margin-bottom:4px;
+    }
+
+    .telemetry-row .v{
+      color:white;
+      font-size:13px;
+      font-weight:800;
+      font-variant-numeric:tabular-nums;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .d2d-link-table{
+      display:grid;
+      gap:7px;
+      margin-top:8px;
+    }
+
+    .d2d-link-card{
+      background:rgba(5,10,18,.62);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:11px;
+      padding:8px;
+      display:grid;
+      grid-template-columns:48px 1fr;
+      gap:8px;
+      align-items:center;
+    }
+
+    .d2d-badge{
+      width:42px;
+      height:42px;
+      border-radius:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(167,109,255,.18);
+      border:1px solid rgba(167,109,255,.42);
+      color:#d8c3ff;
+      font-weight:900;
+      font-size:13px;
+    }
+
+    .d2d-data{
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:6px;
+      font-size:10px;
+      color:var(--muted);
+      font-variant-numeric:tabular-nums;
+    }
+
+    .d2d-data b{
+      display:block;
+      margin-top:2px;
+      color:white;
+      font-size:12px;
+    }
+
+    .hidden-card{
+      display:none;
+    }
+
+    .mini-panel{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+    }
+
+    .status-good{color:var(--green);}
+    .status-warn{color:var(--yellow);}
+    .status-bad{color:var(--red);}
+
+    @media(max-width:980px){
+      .title-panel{width:calc(100% - 24px);}
+      .toolbar{top:auto; bottom:12px; right:12px;}
+      .right-panel{
+        width:calc(100% - 24px);
+        right:12px;
+        left:12px;
+        top:auto;
+        bottom:72px;
+        max-height:42vh;
+      }
+      .bottom-left{display:none;}
+      .time-panel{top:84px;}
+      .bottom-center{left:12px; right:12px; transform:none;}
+    }
+  </style>
+</head>
+
+<body>
+<div id="app">
+  <canvas id="three"></canvas>
+
+  <div class="title-panel">
+    <h1>3D Drone Navigation Simulator</h1>
+    <p>
+      Wall-safe mission version with <b>single/swarm mode</b>, <b>deep reinforcement learning navigation</b>, <b>LiDAR scanning</b>, <b>SLAM occupancy mapping</b>, and
+      <b>depth estimation</b>. Includes one-drone telemetry, D2D swarm telemetry, V-formation control, and a DQN-like reinforcement policy for adaptive obstacle-aware navigation.
+    </p>
+  </div>
+
+  <div class="time-panel">
+    <span>Real Time: <b id="realTime">00:00:00</b></span>
+    <span>Sim Time: <b id="simTime">00:00:00</b></span>
+  </div>
+
+  <div class="toolbar">
+    <button id="missionBtn" class="primary">Mission</button>
+    <button id="manualBtn">Manual</button>
+    <button id="swarmBtn" class="good">Swarm OFF</button>
+    <button id="rlBtn" class="warn">DRL OFF</button>
+    <button id="slamResetBtn">Reset SLAM</button>
+    <button id="resetBtn">Reset</button>
+    <button id="cameraBtn">Camera</button>
+    <div id="pauseIcon" class="pause-icon">Ⅱ</div>
+  </div>
+
+  <div class="right-panel">
+    <div class="card">
+      <h3>Telemetry</h3>
+      <div class="metrics">
+        <div class="metric">
+          <div class="k">Mode</div>
+          <div class="v" id="modeMetric">HOLD</div>
+        </div>
+        <div class="metric">
+          <div class="k">Waypoint</div>
+          <div class="v" id="wpMetric">0/0</div>
+        </div>
+        <div class="metric">
+          <div class="k">Altitude</div>
+          <div class="v" id="altMetric">0.0 m</div>
+        </div>
+        <div class="metric">
+          <div class="k">Speed</div>
+          <div class="v" id="speedMetric">0.0 m/s</div>
+        </div>
+        <div class="metric">
+          <div class="k">Clearance</div>
+          <div class="v" id="clearanceMetric">--</div>
+        </div>
+        <div class="metric">
+          <div class="k">Battery</div>
+          <div class="v" id="batteryMetric">100%</div>
+        </div>
+        <div class="metric">
+          <div class="k">Drone Mode</div>
+          <div class="v" id="swarmMetric">SINGLE</div>
+        </div>
+        <div class="metric">
+          <div class="k">Formation Error</div>
+          <div class="v" id="formationMetric">--</div>
+        </div>
+        <div class="metric">
+          <div class="k">DRL Policy</div>
+          <div class="v" id="rlMetric">OFF</div>
+        </div>
+        <div class="metric">
+          <div class="k">RL Action</div>
+          <div class="v" id="rlActionMetric">GEOM</div>
+        </div>
+        <div class="metric">
+          <div class="k">Reward</div>
+          <div class="v" id="rewardMetric">0.00</div>
+        </div>
+        <div class="metric">
+          <div class="k">LiDAR Hits</div>
+          <div class="v" id="lidarMetric">0</div>
+        </div>
+        <div class="metric">
+          <div class="k">Mapped Cells</div>
+          <div class="v" id="mapMetric">0%</div>
+        </div>
+      </div>
+
+      <div class="slider-row">
+        <span>Speed</span>
+        <input id="speedSlider" type="range" min="2" max="18" value="7" step="0.5">
+        <b id="speedVal">7.0</b>
+      </div>
+
+      <div class="slider-row">
+        <span>Altitude</span>
+        <input id="altSlider" type="range" min="1.5" max="9" value="3.6" step="0.1">
+        <b id="altVal">3.6</b>
+      </div>
+
+      <div class="slider-row">
+        <span>LiDAR</span>
+        <input id="lidarSlider" type="range" min="8" max="28" value="16" step="1">
+        <b id="lidarVal">16</b>
+      </div>
+
+      <div class="slider-row">
+        <span>Camera</span>
+        <input id="camSlider" type="range" min="8" max="34" value="18" step="1">
+        <b id="camVal">18</b>
+      </div>
+    </div>
+
+    <div class="card telemetry-mode-card" id="singleTelemetryCard">
+      <h3>Single Agent Telemetry</h3>
+      <div class="telemetry-table">
+        <div class="telemetry-row">
+          <div class="k">Agent</div>
+          <div class="v" id="singleAgentId">UAV-L</div>
+        </div>
+        <div class="telemetry-row">
+          <div class="k">Navigation</div>
+          <div class="v" id="singleNavState">HOLD</div>
+        </div>
+        <div class="telemetry-row">
+          <div class="k">Pose XYZ</div>
+          <div class="v" id="singlePose">0, 0, 0</div>
+        </div>
+        <div class="telemetry-row">
+          <div class="k">Velocity XYZ</div>
+          <div class="v" id="singleVelocity">0, 0, 0</div>
+        </div>
+        <div class="telemetry-row">
+          <div class="k">Target</div>
+          <div class="v" id="singleTarget">--</div>
+        </div>
+        <div class="telemetry-row">
+          <div class="k">Sensor Status</div>
+          <div class="v" id="singleSensor">LiDAR OK</div>
+        </div>
+      </div>
+      <div class="small">
+        Single-agent telemetry reports only the leader/agent drone state: pose,
+        velocity, heading, target waypoint, LiDAR status, and DRL navigation action.
+      </div>
+    </div>
+
+    <div class="card telemetry-mode-card hidden-card" id="swarmTelemetryCard">
+      <h3>D2D Swarm Navigation Telemetry</h3>
+      <div class="telemetry-table">
+        <div class="telemetry-row">
+          <div class="k">Leader Packet</div>
+          <div class="v" id="swarmLeaderPacket">PKT-0000</div>
+        </div>
+        <div class="telemetry-row">
+          <div class="k">Broadcast State</div>
+          <div class="v" id="swarmBroadcastState">IDLE</div>
+        </div>
+        <div class="telemetry-row">
+          <div class="k">Leader Pose</div>
+          <div class="v" id="swarmLeaderPose">0, 0, 0</div>
+        </div>
+        <div class="telemetry-row">
+          <div class="k">Command</div>
+          <div class="v" id="swarmCommand">--</div>
+        </div>
+      </div>
+
+      <div class="d2d-link-table">
+        <div class="d2d-link-card">
+          <div class="d2d-badge">F1</div>
+          <div class="d2d-data">
+            <span>RSSI<b id="f1Rssi">-- dBm</b></span>
+            <span>Latency<b id="f1Latency">-- ms</b></span>
+            <span>PDR<b id="f1Pdr">--%</b></span>
+            <span>Age<b id="f1Age">-- ms</b></span>
+            <span>Error<b id="f1Error">-- m</b></span>
+            <span>Status<b id="f1Status">--</b></span>
+          </div>
+        </div>
+
+        <div class="d2d-link-card">
+          <div class="d2d-badge">F2</div>
+          <div class="d2d-data">
+            <span>RSSI<b id="f2Rssi">-- dBm</b></span>
+            <span>Latency<b id="f2Latency">-- ms</b></span>
+            <span>PDR<b id="f2Pdr">--%</b></span>
+            <span>Age<b id="f2Age">-- ms</b></span>
+            <span>Error<b id="f2Error">-- m</b></span>
+            <span>Status<b id="f2Status">--</b></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="small">
+        Swarm telemetry shows D2D leader-to-follower packets: leader pose, active
+        waypoint, command, RSSI, latency, packet-delivery ratio, packet age, and
+        formation tracking error.
+      </div>
+    </div>
+
+    <div class="card canvas-card">
+      <h3>LiDAR / SLAM / Depth</h3>
+
+      <div>
+        <div class="viz-title">LiDAR top view</div>
+        <canvas id="lidarCanvas" class="info-canvas" width="300" height="180"></canvas>
+      </div>
+
+      <div>
+        <div class="viz-title">SLAM occupancy map</div>
+        <canvas id="slamCanvas" class="info-canvas" width="300" height="210"></canvas>
+      </div>
+
+      <div>
+        <div class="viz-title">Depth estimation</div>
+        <canvas id="depthCanvas" class="info-canvas" width="300" height="180"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Status</h3>
+      <div class="mini-panel">
+        <div class="metric">
+          <div class="k">Camera Mode</div>
+          <div class="v" id="cameraMetric">FOLLOW</div>
+        </div>
+        <div class="metric">
+          <div class="k">Obstacle Risk</div>
+          <div class="v" id="riskMetric">LOW</div>
+        </div>
+      </div>
+      <div class="small">
+        LiDAR rays are simulated with Three.js raycasting. SLAM is an occupancy-grid
+        estimate built from LiDAR hits and free-space updates. Depth estimation is a
+        forward low-resolution range image reconstructed from simulated rays.
+      </div>
+    </div>
+
+    <div class="card canvas-card">
+      <h3>Deep RL Navigation</h3>
+      <div>
+        <div class="viz-title">DQN-like action values</div>
+        <canvas id="rlCanvas" class="info-canvas" width="300" height="150"></canvas>
+      </div>
+      <div class="small">
+        The DRL mode uses a lightweight DQN-style policy approximation in JavaScript.
+        It reads LiDAR clearance, waypoint bearing, distance, and formation error, then
+        selects actions such as KEEP, SLOW, LEFT, RIGHT, CLIMB, or SAFE.
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-center">
+    <span class="hud-item">🚁 Pos <b id="posHud">0,0</b></span>
+    <span class="hud-item">↕ Alt <b id="altHud">0 m</b></span>
+    <span class="hud-item">→ Vel <b id="velHud">0 m/s</b></span>
+    <span class="hud-item">🧭 Yaw <b id="yawHud">0°</b></span>
+    <span class="hud-item">⚑ Dist <b id="distHud">0 m</b></span>
+  </div>
+
+  <div class="bottom-left">
+    <b>Controls</b><br>
+    Mission: autonomous waypoint navigation. Manual: <b>W/A/S/D</b> or arrows, <b>Space</b> up, <b>Shift</b> down.
+    <div class="legend">
+      <span class="swatch" style="background:#2aa8ff"></span><span>Waypoint path</span>
+      <span class="swatch" style="background:#31ff72"></span><span>Active waypoint</span>
+      <span class="swatch" style="background:#19e1ff"></span><span>LiDAR rays / free scan</span>
+      <span class="swatch" style="background:#a76dff"></span><span>Follower drones in swarm mode</span>
+      <span class="swatch" style="background:#ffd54a"></span><span>D2D leader-to-follower links</span>
+      <span class="swatch" style="background:#ff9e3d"></span><span>Deep RL adaptive navigation action</span>
+      <span class="swatch" style="background:#ff4d57"></span><span>Obstacle hit / warning</span>
+      <span class="swatch" style="background:#8f959b"></span><span>Walls / environment obstacles</span>
+    </div>
+    <div id="log" class="log"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  if (!window.THREE) {
+    document.body.innerHTML = `
+      <div style="padding:24px;color:white;font-family:Arial">
+        <h2>Three.js failed to load.</h2>
+        <p>Open this HTML with internet access so the CDN script can load.</p>
+      </div>`;
+    return;
+  }
+
+  const canvas = document.getElementById("three");
+  const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.setClearColor(0xc8d0d4, 1);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0xc8d0d4, 36, 110);
+
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 300);
+  camera.position.set(12, 10, 18);
+
+  const clock = new THREE.Clock();
+
+  const ui = {
+    realTime: document.getElementById("realTime"),
+    simTime: document.getElementById("simTime"),
+    missionBtn: document.getElementById("missionBtn"),
+    manualBtn: document.getElementById("manualBtn"),
+    swarmBtn: document.getElementById("swarmBtn"),
+    rlBtn: document.getElementById("rlBtn"),
+    slamResetBtn: document.getElementById("slamResetBtn"),
+    resetBtn: document.getElementById("resetBtn"),
+    cameraBtn: document.getElementById("cameraBtn"),
+    pauseIcon: document.getElementById("pauseIcon"),
+    speedSlider: document.getElementById("speedSlider"),
+    altSlider: document.getElementById("altSlider"),
+    lidarSlider: document.getElementById("lidarSlider"),
+    camSlider: document.getElementById("camSlider"),
+    speedVal: document.getElementById("speedVal"),
+    altVal: document.getElementById("altVal"),
+    lidarVal: document.getElementById("lidarVal"),
+    camVal: document.getElementById("camVal"),
+    modeMetric: document.getElementById("modeMetric"),
+    wpMetric: document.getElementById("wpMetric"),
+    altMetric: document.getElementById("altMetric"),
+    speedMetric: document.getElementById("speedMetric"),
+    clearanceMetric: document.getElementById("clearanceMetric"),
+    batteryMetric: document.getElementById("batteryMetric"),
+    swarmMetric: document.getElementById("swarmMetric"),
+    formationMetric: document.getElementById("formationMetric"),
+    rlMetric: document.getElementById("rlMetric"),
+    rlActionMetric: document.getElementById("rlActionMetric"),
+    rewardMetric: document.getElementById("rewardMetric"),
+    lidarMetric: document.getElementById("lidarMetric"),
+    mapMetric: document.getElementById("mapMetric"),
+    cameraMetric: document.getElementById("cameraMetric"),
+    riskMetric: document.getElementById("riskMetric"),
+    posHud: document.getElementById("posHud"),
+    altHud: document.getElementById("altHud"),
+    velHud: document.getElementById("velHud"),
+    yawHud: document.getElementById("yawHud"),
+    distHud: document.getElementById("distHud"),
+    log: document.getElementById("log"),
+    lidarCanvas: document.getElementById("lidarCanvas"),
+    slamCanvas: document.getElementById("slamCanvas"),
+    depthCanvas: document.getElementById("depthCanvas"),
+    rlCanvas: document.getElementById("rlCanvas"),
+
+    singleTelemetryCard: document.getElementById("singleTelemetryCard"),
+    swarmTelemetryCard: document.getElementById("swarmTelemetryCard"),
+    singleAgentId: document.getElementById("singleAgentId"),
+    singleNavState: document.getElementById("singleNavState"),
+    singlePose: document.getElementById("singlePose"),
+    singleVelocity: document.getElementById("singleVelocity"),
+    singleTarget: document.getElementById("singleTarget"),
+    singleSensor: document.getElementById("singleSensor"),
+
+    swarmLeaderPacket: document.getElementById("swarmLeaderPacket"),
+    swarmBroadcastState: document.getElementById("swarmBroadcastState"),
+    swarmLeaderPose: document.getElementById("swarmLeaderPose"),
+    swarmCommand: document.getElementById("swarmCommand"),
+
+    f1Rssi: document.getElementById("f1Rssi"),
+    f1Latency: document.getElementById("f1Latency"),
+    f1Pdr: document.getElementById("f1Pdr"),
+    f1Age: document.getElementById("f1Age"),
+    f1Error: document.getElementById("f1Error"),
+    f1Status: document.getElementById("f1Status"),
+
+    f2Rssi: document.getElementById("f2Rssi"),
+    f2Latency: document.getElementById("f2Latency"),
+    f2Pdr: document.getElementById("f2Pdr"),
+    f2Age: document.getElementById("f2Age"),
+    f2Error: document.getElementById("f2Error"),
+    f2Status: document.getElementById("f2Status")
+  };
+
+  const lidarCtx = ui.lidarCanvas.getContext("2d");
+  const slamCtx = ui.slamCanvas.getContext("2d");
+  const depthCtx = ui.depthCanvas.getContext("2d");
+  const rlCtx = ui.rlCanvas.getContext("2d");
+
+  function fmtTime(s){
+    s = Math.floor(s);
+    const hh = String(Math.floor(s/3600)).padStart(2,"0");
+    const mm = String(Math.floor((s%3600)/60)).padStart(2,"0");
+    const ss = String(s%60).padStart(2,"0");
+    return `${hh}:${mm}:${ss}`;
+  }
+
+  function log(msg){
+    const line = `[${fmtTime(state.simTime)}] ${msg}`;
+    ui.log.innerHTML += line + "<br>";
+    ui.log.scrollTop = ui.log.scrollHeight;
+  }
+
+  const state = {
+    running: true,
+    mode: "HOLD",
+    simTime: 0,
+    realStart: performance.now(),
+    waypointIndex: 0,
+    routeIndex: 0,
+    cameraMode: 0,
+    desiredSpeed: 7,
+    desiredAlt: 3.6,
+    lidarRange: 16,
+    camDistance: 18,
+    battery: 100,
+    traveled: 0,
+    yaw: 0,
+    collisionWarning: false,
+    swarmEnabled: false,
+    formationError: 0,
+    linkQuality: 100,
+    d2dPacketSeq: 0,
+    d2dLastBroadcastTime: 0,
+    d2dLinks: [
+      {rssi:-62, latency:16, pdr:100, age:0, status:"OK"},
+      {rssi:-64, latency:18, pdr:100, age:0, status:"OK"}
+    ],
+    rlEnabled: false,
+    rlAction: "GEOM",
+    rlReward: 0,
+    rlEpisodeReward: 0,
+    rlQ: [0, 0, 0, 0, 0, 0],
+    rlSpeedScale: 1.0,
+    rlAltBias: 0,
+    velocity: new THREE.Vector3(),
+    manualInput: new THREE.Vector3(),
+    lastPos: new THREE.Vector3(),
+    lidarHits: [],
+    lidarCount: 0
+  };
+
+  const keys = {};
+  window.addEventListener("keydown", e => {
+    keys[e.key.toLowerCase()] = true;
+    if([" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(e.key.toLowerCase())) e.preventDefault();
+  });
+  window.addEventListener("keyup", e => {
+    keys[e.key.toLowerCase()] = false;
+  });
+
+  // Lights
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x39493a, 1.55);
+  scene.add(hemi);
+
+  const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+  sun.position.set(-28, 44, 18);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.near = 1;
+  sun.shadow.camera.far = 150;
+  sun.shadow.camera.left = -60;
+  sun.shadow.camera.right = 60;
+  sun.shadow.camera.top = 60;
+  sun.shadow.camera.bottom = -60;
+  scene.add(sun);
+
+  // Ground texture
+  function makeGrassTexture(){
+    const c = document.createElement("canvas");
+    c.width = c.height = 512;
+    const g = c.getContext("2d");
+    g.fillStyle = "#22a844";
+    g.fillRect(0, 0, 512, 512);
+
+    for(let y=0; y<512; y+=10){
+      const grad = g.createLinearGradient(0, y, 512, y+10);
+      grad.addColorStop(0, "rgba(40,170,60,.22)");
+      grad.addColorStop(.5, "rgba(130,240,80,.18)");
+      grad.addColorStop(1, "rgba(10,100,28,.26)");
+      g.fillStyle = grad;
+      g.fillRect(0, y, 512, 10);
+    }
+
+    for(let i=0; i<4000; i++){
+      const x = Math.random()*512;
+      const y = Math.random()*512;
+      g.fillStyle = Math.random() > .5 ? "rgba(205,255,125,.12)" : "rgba(0,85,25,.16)";
+      g.fillRect(x, y, 1+Math.random()*2, 1+Math.random()*2);
+    }
+
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(9, 9);
+    return t;
+  }
+
+  const grassMat = new THREE.MeshStandardMaterial({
+    map: makeGrassTexture(),
+    roughness: .92,
+    metalness: 0
+  });
+
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(90, 70), grassMat);
+  ground.rotation.x = -Math.PI/2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  const wallMat = new THREE.MeshStandardMaterial({color:0x767a7d, roughness:.85});
+  const darkWallMat = new THREE.MeshStandardMaterial({color:0x565b60, roughness:.92});
+  const waypointMat = new THREE.MeshStandardMaterial({color:0x31ff72, emissive:0x115f2c, emissiveIntensity:.7});
+  const pathMat = new THREE.LineBasicMaterial({color:0x2aa8ff});
+  const trailMat = new THREE.LineBasicMaterial({color:0xff4d57});
+
+  const obstacles = [];
+
+  function addBox(name, x, y, z, sx, sy, sz, mat=wallMat){
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
+    mesh.position.set(x, y + sy/2, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData.name = name;
+    scene.add(mesh);
+
+    obstacles.push({
+      name,
+      mesh,
+      min: new THREE.Vector3(x - sx/2, 0, z - sz/2),
+      max: new THREE.Vector3(x + sx/2, sy, z + sz/2)
+    });
+
+    return mesh;
+  }
+
+  // Environment
+  addBox("left wall", -25, 0, 4, 2, 3.4, 26);
+  addBox("front wall", 8, 0, -25, 23, 3.2, 2);
+  addBox("right block", 25, 0, 7, 22, 2.0, 2.1);
+  addBox("low barrier", 16, 0, 18, 30, 1.35, 2.2, darkWallMat);
+  addBox("tower", -4, 0, -23, 6, 9, 5, darkWallMat);
+
+  for(let i=0; i<4; i++){
+    addBox("stairs " + i, 7 + i*1.35, i*.28, -16 + i*1.1, 3.6, .35, 1.2, wallMat);
+  }
+
+  // Decorative posts / obstacles
+  addBox("post1", -10, 0, 10, 1.8, 2.6, 1.8, darkWallMat);
+  addBox("post2", 4, 0, 10, 1.8, 2.6, 1.8, darkWallMat);
+  addBox("post3", 20, 0, -12, 1.5, 4.8, 1.5, darkWallMat);
+
+  // Dedicated HOME/start point. The mission starts here, then visits every waypoint.
+  // This fixes the previous behavior where the drone started directly on WP1.
+  const homePoint = {x:-36, z:28, y:3.6};
+
+  const waypoints = [
+    {x:-32, z:24, y:3.6},
+    {x:-18, z:8,  y:4.1},
+    {x:-1,  z:0,  y:4.8},
+    {x:12,  z:-9, y:5.4},
+    {x:26,  z:-8, y:4.5},
+    {x:31,  z:14, y:3.8},
+    {x:5,   z:24, y:4.2},
+    {x:-23, z:21, y:3.6}
+  ];
+
+  let waypointVisited = new Array(waypoints.length).fill(false);
+
+  /*
+    Mission route planner
+    ---------------------
+    The real mission waypoints stay unchanged, but two virtual bypass gates are
+    inserted after WP5 to avoid the long wall/right block before flying to WP6.
+
+    Previous problem:
+      WP5 -> WP6 produced a nearly straight segment through/too close to the wall.
+    Fix:
+      WP5 -> BYPASS-5A -> BYPASS-5B -> WP6
+    The bypass gates are not counted as mission waypoints.
+  */
+  const routeGoals = [];
+  for(let i = 0; i < waypoints.length; i++){
+    routeGoals.push({...waypoints[i], realIndex:i, label:`WP${i+1}`, virtual:false});
+
+    // After WP5, go around the right side of the wall before targeting WP6.
+    if(i === 4){
+      routeGoals.push({x:39.0, z:-2.0,  y:5.0, realIndex:null, label:"BYPASS-5A", virtual:true});
+      routeGoals.push({x:39.0, z:12.0,  y:5.0, realIndex:null, label:"BYPASS-5B", virtual:true});
+    }
+
+    // After WP6, avoid the long low wall/barrier before targeting WP7.
+    // This prevents the drone from trying to cut diagonally across the obstacle.
+    if(i === 5){
+      routeGoals.push({x:37.5, z:22.5, y:5.0, realIndex:null, label:"BYPASS-6A", virtual:true});
+      routeGoals.push({x:12.0, z:28.0, y:5.0, realIndex:null, label:"BYPASS-6B", virtual:true});
+    }
+
+    // After WP7, approach WP8 from above the left wall instead of grazing its corner.
+    if(i === 6){
+      routeGoals.push({x:-10.0, z:29.0, y:4.8, realIndex:null, label:"BYPASS-7A", virtual:true});
+      routeGoals.push({x:-22.5, z:27.0, y:4.6, realIndex:null, label:"BYPASS-7B", virtual:true});
+    }
+  }
+
+  function activeRealWaypointIndex(){
+    const g = routeGoals[state.routeIndex];
+    if(!g) return -1;
+    if(g.realIndex !== null && g.realIndex !== undefined) return g.realIndex;
+
+    // During a bypass gate, highlight the next real waypoint.
+    for(let k = state.routeIndex + 1; k < routeGoals.length; k++){
+      if(routeGoals[k].realIndex !== null && routeGoals[k].realIndex !== undefined){
+        return routeGoals[k].realIndex;
+      }
+    }
+    return -1;
+  }
+
+  function makeTextSprite(text, color="#ffffff"){
+    const c = document.createElement("canvas");
+    c.width = 128;
+    c.height = 64;
+    const g = c.getContext("2d");
+
+    g.fillStyle = "rgba(0,0,0,.56)";
+    g.fillRect(10, 10, 108, 44);
+    g.strokeStyle = color;
+    g.lineWidth = 3;
+    g.strokeRect(10, 10, 108, 44);
+
+    g.fillStyle = color;
+    g.font = "bold 28px Arial";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.fillText(text, 64, 33);
+
+    const tex = new THREE.CanvasTexture(c);
+    const mat = new THREE.SpriteMaterial({map:tex, transparent:true});
+    const s = new THREE.Sprite(mat);
+    s.scale.set(3.2, 1.6, 1);
+    return s;
+  }
+
+  const wpMeshes = [];
+  const wpSprites = [];
+
+  for(let i=0; i<waypoints.length; i++){
+    const w = waypoints[i];
+    const sphere = new THREE.Mesh(new THREE.SphereGeometry(.55, 24, 16), waypointMat.clone());
+    sphere.position.set(w.x, w.y, w.z);
+    sphere.castShadow = true;
+    scene.add(sphere);
+    wpMeshes.push(sphere);
+
+    const label = makeTextSprite(String(i+1), "#71c6ff");
+    label.position.set(w.x, w.y + 1.4, w.z);
+    scene.add(label);
+    wpSprites.push(label);
+  }
+
+  const pathPoints = [homePoint, ...routeGoals].map(w => new THREE.Vector3(w.x, w.y, w.z));
+  const pathLine = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(pathPoints),
+    pathMat
+  );
+  scene.add(pathLine);
+
+  // HOME marker
+  const homeMat = new THREE.MeshStandardMaterial({color:0xff9e3d, emissive:0xff6b00, emissiveIntensity:.55});
+  const homeMesh = new THREE.Mesh(new THREE.CylinderGeometry(.8, .8, .18, 32), homeMat);
+  homeMesh.position.set(homePoint.x, homePoint.y - .25, homePoint.z);
+  homeMesh.castShadow = true;
+  scene.add(homeMesh);
+
+  const homeLabel = makeTextSprite("HOME", "#ffcf78");
+  homeLabel.position.set(homePoint.x, homePoint.y + 1.4, homePoint.z);
+  scene.add(homeLabel);
+  wpSprites.push(homeLabel);
+
+  // Virtual bypass gates used by the local planner to avoid the wall after WP5.
+  const bypassMat = new THREE.MeshStandardMaterial({
+    color:0xff9e3d,
+    emissive:0x9b4a00,
+    emissiveIntensity:.55,
+    roughness:.55
+  });
+
+  for(const g of routeGoals){
+    if(!g.virtual) continue;
+
+    const gate = new THREE.Mesh(new THREE.TorusGeometry(.85, .055, 8, 36), bypassMat);
+    gate.position.set(g.x, g.y, g.z);
+    gate.rotation.x = Math.PI/2;
+    scene.add(gate);
+
+    const gateLabel = makeTextSprite(g.label.replace("BYPASS-", "B"), "#ffcf78");
+    gateLabel.position.set(g.x, g.y + 1.2, g.z);
+    scene.add(gateLabel);
+    wpSprites.push(gateLabel);
+  }
+
+  // Drone
+  const drone = new THREE.Group();
+  scene.add(drone);
+
+  const droneBodyMat = new THREE.MeshStandardMaterial({color:0x171b21, roughness:.55, metalness:.25});
+  const armMat = new THREE.MeshStandardMaterial({color:0x242c38, roughness:.5});
+  const propMat = new THREE.MeshStandardMaterial({color:0x111111, roughness:.38});
+  const domeMat = new THREE.MeshStandardMaterial({color:0x2aa8ff, emissive:0x2aa8ff, emissiveIntensity:1.0});
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.25, .28, 1.0), droneBodyMat);
+  body.castShadow = true;
+  drone.add(body);
+
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(.36, 22, 12), domeMat);
+  dome.scale.set(1, .35, 1);
+  dome.position.set(0, .25, 0);
+  drone.add(dome);
+
+  const arm1 = new THREE.Mesh(new THREE.BoxGeometry(2.2, .12, .12), armMat);
+  const arm2 = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, 2.2), armMat);
+  arm1.castShadow = arm2.castShadow = true;
+  drone.add(arm1, arm2);
+
+  const rotors = [];
+  const rotorPos = [
+    [-1.05, 0, -1.05],
+    [ 1.05, 0, -1.05],
+    [-1.05, 0,  1.05],
+    [ 1.05, 0,  1.05]
+  ];
+
+  for(const p of rotorPos){
+    const motor = new THREE.Mesh(new THREE.CylinderGeometry(.18, .18, .16, 18), droneBodyMat);
+    motor.rotation.x = Math.PI/2;
+    motor.position.set(p[0], .08, p[2]);
+    motor.castShadow = true;
+    drone.add(motor);
+
+    const prop = new THREE.Group();
+    const b1 = new THREE.Mesh(new THREE.BoxGeometry(1.02, .024, .10), propMat);
+    const b2 = new THREE.Mesh(new THREE.BoxGeometry(.10, .024, 1.02), propMat);
+    prop.add(b1, b2);
+    prop.position.set(p[0], .22, p[2]);
+    drone.add(prop);
+    rotors.push(prop);
+  }
+
+  const safetyRing = new THREE.Mesh(
+    new THREE.TorusGeometry(2.2, .028, 8, 96),
+    new THREE.MeshBasicMaterial({color:0x19e1ff, transparent:true, opacity:.35})
+  );
+  safetyRing.rotation.x = Math.PI/2;
+  safetyRing.position.y = -.08;
+  drone.add(safetyRing);
+
+  function createFollowerDrone(name, bodyColor, domeColor){
+    const g = new THREE.Group();
+    g.name = name;
+
+    const bodyMat = new THREE.MeshStandardMaterial({color:bodyColor, roughness:.58, metalness:.18});
+    const armLocalMat = new THREE.MeshStandardMaterial({color:0x242c38, roughness:.55});
+    const propLocalMat = new THREE.MeshStandardMaterial({color:0x101010, roughness:.4});
+    const domeLocalMat = new THREE.MeshStandardMaterial({
+      color:domeColor,
+      emissive:domeColor,
+      emissiveIntensity:.9
+    });
+
+    const b = new THREE.Mesh(new THREE.BoxGeometry(1.08,.24,.88), bodyMat);
+    b.castShadow = true;
+    g.add(b);
+
+    const d = new THREE.Mesh(new THREE.SphereGeometry(.30, 20, 10), domeLocalMat);
+    d.scale.set(1,.35,1);
+    d.position.set(0,.22,0);
+    g.add(d);
+
+    const a1 = new THREE.Mesh(new THREE.BoxGeometry(1.9,.10,.10), armLocalMat);
+    const a2 = new THREE.Mesh(new THREE.BoxGeometry(.10,.10,1.9), armLocalMat);
+    a1.castShadow = a2.castShadow = true;
+    g.add(a1,a2);
+
+    const localRotors = [];
+    const p = [
+      [-.92,0,-.92],
+      [ .92,0,-.92],
+      [-.92,0, .92],
+      [ .92,0, .92]
+    ];
+
+    for(const rp of p){
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(.15,.15,.13,16), bodyMat);
+      m.rotation.x = Math.PI/2;
+      m.position.set(rp[0],.07,rp[2]);
+      m.castShadow = true;
+      g.add(m);
+
+      const pr = new THREE.Group();
+      pr.position.set(rp[0],.20,rp[2]);
+
+      const blade1 = new THREE.Mesh(new THREE.BoxGeometry(.86,.022,.085), propLocalMat);
+      const blade2 = new THREE.Mesh(new THREE.BoxGeometry(.085,.022,.86), propLocalMat);
+      pr.add(blade1,blade2);
+      g.add(pr);
+      localRotors.push(pr);
+    }
+
+    const linkAnchor = new THREE.Object3D();
+    g.add(linkAnchor);
+
+    scene.add(g);
+    g.visible = false;
+
+    const label = makeTextSprite(name, "#d7b6ff");
+    label.scale.set(2.8, 1.35, 1);
+    label.visible = false;
+    scene.add(label);
+    wpSprites.push(label);
+
+    return {
+      name,
+      group:g,
+      label,
+      rotors:localRotors,
+      velocity:new THREE.Vector3(),
+      desired:new THREE.Vector3(),
+      offset:new THREE.Vector3(),
+      error:0
+    };
+  }
+
+  const followers = [
+    createFollowerDrone("F1", 0x6b4cff, 0xa76dff),
+    createFollowerDrone("F2", 0x8e55ff, 0xc08cff)
+  ];
+
+  followers[0].offset.set(-4.2, -0.35, 3.6);
+  followers[1].offset.set( 4.2, -0.35, 3.6);
+
+  const linkPositions = new Float32Array(followers.length * 2 * 3);
+  const linkGeo = new THREE.BufferGeometry();
+  linkGeo.setAttribute("position", new THREE.BufferAttribute(linkPositions, 3));
+  linkGeo.setDrawRange(0, followers.length * 2);
+
+  const linkMat = new THREE.LineBasicMaterial({
+    color:0xffd54a,
+    transparent:true,
+    opacity:.72
+  });
+
+  const d2dLinks = new THREE.LineSegments(linkGeo, linkMat);
+  scene.add(d2dLinks);
+
+  function setSwarmVisible(enabled){
+    for(const f of followers){
+      f.group.visible = enabled;
+      f.label.visible = enabled;
+    }
+    d2dLinks.visible = enabled;
+  }
+
+  function rotateFormationOffset(offset, yaw){
+    const s = Math.sin(yaw);
+    const c = Math.cos(yaw);
+    return new THREE.Vector3(
+      offset.x * c + offset.z * s,
+      offset.y,
+      -offset.x * s + offset.z * c
+    );
+  }
+
+  function updateSwarmFollowers(dt){
+    if(!state.swarmEnabled){
+      setSwarmVisible(false);
+      state.formationError = 0;
+      return;
+    }
+
+    setSwarmVisible(true);
+
+    let sumError = 0;
+
+    for(let i=0; i<followers.length; i++){
+      const f = followers[i];
+      const rotatedOffset = rotateFormationOffset(f.offset, state.yaw);
+      const target = drone.position.clone().add(rotatedOffset);
+
+      // Match the leader altitude envelope while keeping slight vertical separation.
+      target.y = clamp(target.y, 1.1, 11.5);
+
+      const to = target.clone().sub(f.group.position);
+      f.error = to.length();
+      sumError += f.error;
+
+      let desired = new THREE.Vector3(to.x, 0, to.z);
+      if(desired.length() > .001) desired.normalize();
+
+      // Followers use the same local wall avoidance as the leader.
+      desired = avoidObstacles(f.group.position, desired);
+
+      const followSpeed = clamp(f.error * 1.35, 1.0, Math.max(3.2, state.desiredSpeed * 1.08));
+      f.velocity.x = desired.x * followSpeed;
+      f.velocity.z = desired.z * followSpeed;
+      f.velocity.y = clamp((target.y - f.group.position.y) * 1.4, -2.6, 2.6);
+
+      const next = f.group.position.clone().addScaledVector(f.velocity, dt);
+      next.x = clamp(next.x, -42, 42);
+      next.z = clamp(next.z, -32, 32);
+      next.y = clamp(next.y, 1.0, 12);
+
+      if(!wouldCollide(next)){
+        f.group.position.copy(next);
+      } else {
+        // Soft stop if the follower gets too close to an obstacle.
+        f.velocity.multiplyScalar(0.15);
+      }
+
+      const hv = Math.hypot(f.velocity.x, f.velocity.z);
+      if(hv > .04){
+        f.group.rotation.y = Math.atan2(f.velocity.x, f.velocity.z);
+      } else {
+        f.group.rotation.y += (state.yaw - f.group.rotation.y) * Math.min(1, dt * 3);
+      }
+
+      f.group.rotation.z = -f.velocity.x * .025;
+      f.group.rotation.x =  f.velocity.z * .022;
+
+      for(let k=0; k<f.rotors.length; k++){
+        f.rotors[k].rotation.y += dt * (42 + hv * 8) * (k % 2 ? 1 : -1);
+      }
+
+      f.label.position.copy(f.group.position).add(new THREE.Vector3(0,1.25,0));
+
+      const base = i * 6;
+      linkPositions[base + 0] = drone.position.x;
+      linkPositions[base + 1] = drone.position.y;
+      linkPositions[base + 2] = drone.position.z;
+      linkPositions[base + 3] = f.group.position.x;
+      linkPositions[base + 4] = f.group.position.y;
+      linkPositions[base + 5] = f.group.position.z;
+    }
+
+    state.formationError = sumError / followers.length;
+    state.linkQuality = clamp(100 - state.formationError * 9, 45, 100);
+    linkMat.opacity = clamp(state.linkQuality / 120, .35, .85);
+    linkGeo.attributes.position.needsUpdate = true;
+  }
+
+  const trailMax = 900;
+  const trailPos = new Float32Array(trailMax * 3);
+  const trailGeo = new THREE.BufferGeometry();
+  trailGeo.setAttribute("position", new THREE.BufferAttribute(trailPos, 3));
+  trailGeo.setDrawRange(0, 0);
+  const trailLine = new THREE.Line(trailGeo, trailMat);
+  scene.add(trailLine);
+  let trailCount = 0;
+
+  // LiDAR lines
+  const lidarBeamCount = 72;
+  const lidarPositions = new Float32Array(lidarBeamCount * 2 * 3);
+  const lidarColors = new Float32Array(lidarBeamCount * 2 * 3);
+  const lidarGeo = new THREE.BufferGeometry();
+  lidarGeo.setAttribute("position", new THREE.BufferAttribute(lidarPositions, 3));
+  lidarGeo.setAttribute("color", new THREE.BufferAttribute(lidarColors, 3));
+  const lidarMat = new THREE.LineBasicMaterial({vertexColors:true, transparent:true, opacity:.95});
+  const lidarLines = new THREE.LineSegments(lidarGeo, lidarMat);
+  scene.add(lidarLines);
+
+  const raycaster = new THREE.Raycaster();
+  const tempOrigin = new THREE.Vector3();
+  const tempDir = new THREE.Vector3();
+
+  function clamp(v, mn, mx){ return Math.max(mn, Math.min(mx, v)); }
+
+  function obstacleAffectsFlight(pos, obstacle, margin=1.0){
+    // Ignore low obstacles that the drone is clearly flying above.
+    // This fixes the WP6->WP7 and WP7->WP8 region where the old planner
+    // repelled the UAV from a low barrier even when altitude clearance was safe.
+    return pos.y <= obstacle.max.y + margin;
+  }
+
+  function nearestObstacleClearance(pos){
+    let minD = Infinity;
+    for(const o of obstacles){
+      if(!obstacleAffectsFlight(pos, o, 1.0)) continue;
+
+      const cx = clamp(pos.x, o.min.x, o.max.x);
+      const cz = clamp(pos.z, o.min.z, o.max.z);
+      const dx = pos.x - cx;
+      const dz = pos.z - cz;
+      const d = Math.hypot(dx, dz);
+      minD = Math.min(minD, d);
+    }
+    return minD;
+  }
+
+  function avoidObstacles(pos, desiredDir){
+    const avoid = new THREE.Vector3();
+
+    for(const o of obstacles){
+      if(!obstacleAffectsFlight(pos, o, 1.0)) continue;
+
+      const cx = clamp(pos.x, o.min.x - 2.2, o.max.x + 2.2);
+      const cz = clamp(pos.z, o.min.z - 2.2, o.max.z + 2.2);
+      const dx = pos.x - cx;
+      const dz = pos.z - cz;
+      const d = Math.hypot(dx, dz);
+      const safe = 4.8;
+
+      if(d < safe){
+        const strength = (safe - Math.max(.001, d)) / safe;
+        if(d > .001){
+          avoid.x += dx / d * strength * 2.35;
+          avoid.z += dz / d * strength * 2.35;
+        } else {
+          avoid.x += (Math.random() - .5) * 2;
+          avoid.z += (Math.random() - .5) * 2;
+        }
+      }
+    }
+
+    const out = desiredDir.clone().add(avoid);
+    out.y = 0;
+    if(out.length() > .001) out.normalize();
+    return out;
+  }
+
+  function wouldCollide(pos){
+    const r = 1.1;
+    for(const o of obstacles){
+      // Only collide with an obstacle if the drone is within its vertical envelope.
+      // Low walls can be overflown when altitude is high enough.
+      if(pos.y < o.max.y + .55 &&
+         pos.x > o.min.x - r && pos.x < o.max.x + r &&
+         pos.z > o.min.z - r && pos.z < o.max.z + r){
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function updateWaypointsVisual(){
+    const activeIdx = activeRealWaypointIndex();
+
+    for(let i=0; i<wpMeshes.length; i++){
+      const active = i === activeIdx && state.mode === "MISSION";
+      const done = waypointVisited[i];
+
+      if(done){
+        wpMeshes[i].material.color.set(0x2aa8ff);
+        wpMeshes[i].material.emissive.set(0x06466b);
+      } else if(active){
+        wpMeshes[i].material.color.set(0x31ff72);
+        wpMeshes[i].material.emissive.set(0x31ff72);
+      } else {
+        wpMeshes[i].material.color.set(0xffd54a);
+        wpMeshes[i].material.emissive.set(0x5b4d12);
+      }
+
+      wpMeshes[i].scale.setScalar(active ? 1.45 + Math.sin(state.simTime * 5) * .1 : done ? 0.95 : 1.08);
+    }
+  }
+
+  function updateTrail(){
+    if(trailCount < trailMax){
+      trailPos[trailCount*3 + 0] = drone.position.x;
+      trailPos[trailCount*3 + 1] = drone.position.y;
+      trailPos[trailCount*3 + 2] = drone.position.z;
+      trailCount++;
+    } else {
+      trailPos.copyWithin(0, 3);
+      trailPos[(trailMax-1)*3 + 0] = drone.position.x;
+      trailPos[(trailMax-1)*3 + 1] = drone.position.y;
+      trailPos[(trailMax-1)*3 + 2] = drone.position.z;
+    }
+    trailGeo.attributes.position.needsUpdate = true;
+    trailGeo.setDrawRange(0, trailCount);
+  }
+
+  // SLAM occupancy map
+  const mapWorld = {xmin:-45, xmax:45, zmin:-35, zmax:35};
+  const slamCols = 120;
+  const slamRows = 92;
+  let slamGrid = new Float32Array(slamCols * slamRows);
+
+  function resetSLAM(){
+    slamGrid = new Float32Array(slamCols * slamRows);
+    log("SLAM occupancy map reset.");
+  }
+
+  function worldToGrid(x, z){
+    const gx = Math.floor((x - mapWorld.xmin) / (mapWorld.xmax - mapWorld.xmin) * slamCols);
+    const gz = Math.floor((z - mapWorld.zmin) / (mapWorld.zmax - mapWorld.zmin) * slamRows);
+    return {
+      gx: clamp(gx, 0, slamCols-1),
+      gz: clamp(gz, 0, slamRows-1)
+    };
+  }
+
+  function mapIndex(gx, gz){
+    return gz * slamCols + gx;
+  }
+
+  function markCell(gx, gz, delta){
+    const idx = mapIndex(gx, gz);
+    slamGrid[idx] = clamp(slamGrid[idx] + delta, -1.5, 1.5);
+  }
+
+  function updateSLAMFromLidar(){
+    for(const hit of state.lidarHits){
+      const maxD = hit.distance;
+      const steps = Math.max(4, Math.floor(maxD / 0.7));
+      for(let i=1; i<steps; i++){
+        const t = i / steps;
+        const fx = hit.origin.x + (hit.end.x - hit.origin.x) * t;
+        const fz = hit.origin.z + (hit.end.z - hit.origin.z) * t;
+        const g = worldToGrid(fx, fz);
+        markCell(g.gx, g.gz, -0.03);
+      }
+
+      if(hit.hit){
+        const g = worldToGrid(hit.end.x, hit.end.z);
+        markCell(g.gx, g.gz, 0.24);
+      }
+    }
+  }
+
+  function mappedPercent(){
+    let known = 0;
+    for(let i=0; i<slamGrid.length; i++){
+      if(Math.abs(slamGrid[i]) > 0.06) known++;
+    }
+    return 100 * known / slamGrid.length;
+  }
+
+
+  const RL_ACTIONS = ["KEEP", "SLOW", "LEFT", "RIGHT", "CLIMB", "SAFE"];
+
+  function wrapAngle(a){
+    return (a + Math.PI) % (2 * Math.PI) - Math.PI;
+  }
+
+  function rotatePlanar(v, angle){
+    const c = Math.cos(angle);
+    const s = Math.sin(angle);
+    return new THREE.Vector3(
+      v.x * c + v.z * s,
+      0,
+      -v.x * s + v.z * c
+    );
+  }
+
+  function getLidarSectorClearance(centerAngle, widthRad){
+    let best = state.lidarRange;
+    let seen = false;
+
+    for(const h of state.lidarHits){
+      const da = Math.abs(wrapAngle(h.angle - centerAngle));
+      if(da <= widthRad * 0.5){
+        seen = true;
+        best = Math.min(best, h.distance);
+      }
+    }
+
+    return seen ? best : state.lidarRange;
+  }
+
+  function computeDRLNavigation(pos, desiredDir, targetVec, activeGoal, baseSpeedScale){
+    // Lightweight DQN-like policy approximation.
+    // It is deterministic and designed for simulation/visualization, but it uses
+    // the same inputs expected by a trained reinforcement policy: LiDAR sectors,
+    // target bearing, distance, clearance, velocity, and formation error.
+    const targetYaw = Math.atan2(targetVec.x, targetVec.z);
+    const frontClear = getLidarSectorClearance(state.yaw, Math.PI / 3);
+    const leftClear = getLidarSectorClearance(state.yaw - Math.PI / 2, Math.PI / 2);
+    const rightClear = getLidarSectorClearance(state.yaw + Math.PI / 2, Math.PI / 2);
+    const rearClear = getLidarSectorClearance(state.yaw + Math.PI, Math.PI / 2);
+
+    const minClear = Math.min(frontClear, leftClear, rightClear);
+    const distToGoal = Math.max(0.001, Math.hypot(targetVec.x, targetVec.z));
+    const closeRisk = clamp((4.8 - minClear) / 4.8, 0, 1);
+    const frontRisk = clamp((6.0 - frontClear) / 6.0, 0, 1);
+    const goalErr = Math.abs(wrapAngle(targetYaw - state.yaw));
+    const goalAlign = 1.0 - clamp(goalErr / Math.PI, 0, 1);
+    const formationPenalty = state.swarmEnabled ? clamp(state.formationError / 7.0, 0, 1) : 0;
+
+    const sidePreferenceLeft = clamp((leftClear - rightClear) / Math.max(1, state.lidarRange), -1, 1);
+    const sidePreferenceRight = clamp((rightClear - leftClear) / Math.max(1, state.lidarRange), -1, 1);
+
+    // Q-values: KEEP, SLOW, LEFT, RIGHT, CLIMB, SAFE.
+    const qKeep = 1.20 * goalAlign + 0.30 * (1 - closeRisk) - 0.95 * frontRisk - 0.20 * formationPenalty;
+    const qSlow = 0.35 + 1.10 * frontRisk + 0.70 * closeRisk + 0.20 * formationPenalty;
+    const qLeft = 0.20 + 1.00 * frontRisk + 0.75 * Math.max(0, sidePreferenceLeft) - 0.15 * goalErr;
+    const qRight = 0.20 + 1.00 * frontRisk + 0.75 * Math.max(0, sidePreferenceRight) - 0.15 * goalErr;
+    const qClimb = 0.10 + 0.85 * frontRisk + 0.45 * closeRisk - 0.06 * Math.max(0, pos.y - 7.0);
+    const qSafe = -0.25 + 1.80 * clamp((2.2 - minClear) / 2.2, 0, 1) + 0.35 * formationPenalty;
+
+    const q = [qKeep, qSlow, qLeft, qRight, qClimb, qSafe];
+    let bestIdx = 0;
+    for(let i=1; i<q.length; i++){
+      if(q[i] > q[bestIdx]) bestIdx = i;
+    }
+
+    let action = RL_ACTIONS[bestIdx];
+    let dir = desiredDir.clone();
+    let speedScale = baseSpeedScale;
+    let altBias = 0;
+
+    if(action === "SLOW"){
+      speedScale *= clamp(1 - 0.55 * Math.max(frontRisk, closeRisk), 0.28, 0.78);
+    } else if(action === "LEFT"){
+      dir = rotatePlanar(dir, -0.50 - 0.25 * frontRisk);
+      speedScale *= 0.82;
+    } else if(action === "RIGHT"){
+      dir = rotatePlanar(dir, 0.50 + 0.25 * frontRisk);
+      speedScale *= 0.82;
+    } else if(action === "CLIMB"){
+      altBias = 1.35 + 1.0 * frontRisk;
+      speedScale *= 0.86;
+    } else if(action === "SAFE"){
+      dir.multiplyScalar(0.15);
+      speedScale *= 0.18;
+      altBias = 1.8;
+    }
+
+    if(dir.length() > .001) dir.normalize();
+
+    // Reward model for visualization.
+    const progressReward = clamp((state.desiredSpeed * baseSpeedScale) / 18.0, 0, 1) * goalAlign;
+    const safetyPenalty = 1.25 * closeRisk + (state.collisionWarning ? 2.0 : 0);
+    const smoothPenalty = action === "SAFE" ? 0.25 : 0.0;
+    const distanceBonus = clamp(1.0 / (1.0 + distToGoal * 0.05), 0, 0.8);
+    const reward = progressReward + distanceBonus - safetyPenalty - smoothPenalty - 0.15 * formationPenalty;
+
+    state.rlQ = q;
+    state.rlAction = action;
+    state.rlReward = reward;
+    state.rlEpisodeReward += reward * 0.02;
+    state.rlSpeedScale = speedScale;
+    state.rlAltBias = altBias;
+
+    return {dir, speedScale, altBias, action, reward};
+  }
+
+  function updateDrone(dt){
+    const pos = drone.position.clone();
+    const old = pos.clone();
+    state.desiredAlt = parseFloat(ui.altSlider.value);
+    state.desiredSpeed = parseFloat(ui.speedSlider.value);
+    state.lidarRange = parseFloat(ui.lidarSlider.value);
+
+    let desired = new THREE.Vector3();
+
+    if(state.mode === "MISSION"){
+      const goal = routeGoals[state.routeIndex];
+
+      if(!goal){
+        state.mode = "HOLD";
+        state.velocity.multiplyScalar(0);
+      } else {
+        const target = new THREE.Vector3(goal.x, goal.y, goal.z);
+        const to = target.clone().sub(pos);
+        const planar = Math.hypot(to.x, to.z);
+        const dist3d = to.length();
+
+        // More robust waypoint/gate acceptance.
+        // Virtual bypass gates are intentionally easier to accept so the UAV
+        // does not orbit too long near the wall.
+        const planarTol = goal.virtual ? 2.75 : 2.15;
+        const altTol = goal.virtual ? 1.65 : 1.25;
+        const distTol = goal.virtual ? 3.00 : 2.35;
+        const reached = (planar < planarTol && Math.abs(pos.y - target.y) < altTol) || dist3d < distTol;
+
+        if(reached){
+          if(goal.realIndex !== null && goal.realIndex !== undefined){
+            if(!waypointVisited[goal.realIndex]){
+              waypointVisited[goal.realIndex] = true;
+              const count = waypointVisited.filter(Boolean).length;
+              log(`Reached waypoint ${goal.realIndex + 1} (${count}/${waypoints.length}).`);
+            }
+            state.waypointIndex = goal.realIndex;
+          } else {
+            log(`Passed safety bypass gate ${goal.label} to avoid the wall near WP5.`);
+          }
+
+          state.routeIndex++;
+
+          if(state.routeIndex >= routeGoals.length){
+            state.mode = "HOLD";
+            state.waypointIndex = waypoints.length - 1;
+            state.velocity.multiplyScalar(0);
+            log("Mission completed: all real waypoints were covered. Switching to HOLD.");
+          }
+        }
+
+        if(state.mode === "MISSION"){
+          const active = routeGoals[state.routeIndex];
+          const t2 = new THREE.Vector3(active.x, active.y, active.z);
+          const to2 = t2.clone().sub(pos);
+
+          desired.set(to2.x, 0, to2.z);
+          if(desired.length() > .001) desired.normalize();
+
+          // Keep obstacle avoidance but preserve attraction to the active goal.
+          const avoidDir = avoidObstacles(pos, desired);
+          desired.lerp(avoidDir, active.virtual ? 0.55 : 0.70);
+          if(desired.length() > .001) desired.normalize();
+
+          const slowRadius = active.virtual ? 4.0 : 5.0;
+          const planar2 = Math.hypot(to2.x, to2.z);
+          let speedScale = clamp(planar2 / slowRadius, active.virtual ? 0.42 : 0.34, 1.0);
+          let altBias = 0;
+
+          if(state.rlEnabled){
+            const rl = computeDRLNavigation(pos, desired, to2, active, speedScale);
+            desired.copy(rl.dir);
+            speedScale = rl.speedScale;
+            altBias = rl.altBias;
+          } else {
+            state.rlAction = "GEOM";
+            state.rlReward = 0;
+            state.rlQ = [0, 0, 0, 0, 0, 0];
+            state.rlSpeedScale = speedScale;
+            state.rlAltBias = 0;
+          }
+
+          state.velocity.x = desired.x * state.desiredSpeed * speedScale;
+          state.velocity.z = desired.z * state.desiredSpeed * speedScale;
+          state.velocity.y = clamp((t2.y + altBias - pos.y) * 1.25, -2.8, 2.8);
+        }
+      }
+    }
+
+    if(state.mode === "MANUAL"){
+      desired.set(0, 0, 0);
+      if(keys["w"] || keys["arrowup"]) desired.z -= 1;
+      if(keys["s"] || keys["arrowdown"]) desired.z += 1;
+      if(keys["a"] || keys["arrowleft"]) desired.x -= 1;
+      if(keys["d"] || keys["arrowright"]) desired.x += 1;
+      if(desired.length() > .001) desired.normalize();
+      desired = avoidObstacles(pos, desired);
+
+      state.velocity.x = desired.x * state.desiredSpeed;
+      state.velocity.z = desired.z * state.desiredSpeed;
+
+      let vy = 0;
+      if(keys[" "]) vy += 2.7;
+      if(keys["shift"]) vy -= 2.7;
+      if(vy === 0) vy = (state.desiredAlt - pos.y) * 0.95;
+      state.velocity.y = clamp(vy, -3.0, 3.0);
+    }
+
+    if(state.mode === "HOLD"){
+      state.velocity.x *= Math.exp(-dt * 5);
+      state.velocity.z *= Math.exp(-dt * 5);
+      state.velocity.y = clamp((state.desiredAlt - pos.y) * 0.9, -2.0, 2.0);
+    }
+
+    // Final wall-proximity speed limiter.
+    // This is a second safety layer after obstacle avoidance. It reduces the
+    // horizontal speed near walls so the drone cannot clip into the obstacle
+    // while moving toward a waypoint.
+    const localClearance = nearestObstacleClearance(pos);
+    if(localClearance < 3.8){
+      const proximityScale = clamp((localClearance - 1.05) / 2.75, 0.16, 1.0);
+      state.velocity.x *= proximityScale;
+      state.velocity.z *= proximityScale;
+    }
+
+    const newPos = pos.clone().addScaledVector(state.velocity, dt);
+    newPos.x = clamp(newPos.x, -42, 42);
+    newPos.z = clamp(newPos.z, -32, 32);
+    newPos.y = clamp(newPos.y, 1.0, 12);
+
+    state.collisionWarning = false;
+    if(wouldCollide(newPos)){
+      state.collisionWarning = true;
+      const tryX = pos.clone(); tryX.x = newPos.x; tryX.y = newPos.y;
+      const tryZ = pos.clone(); tryZ.z = newPos.z; tryZ.y = newPos.y;
+
+      if(!wouldCollide(tryX)) drone.position.copy(tryX);
+      else if(!wouldCollide(tryZ)) drone.position.copy(tryZ);
+      else {
+        state.velocity.multiplyScalar(0);
+        drone.position.y = newPos.y;
+      }
+    } else {
+      drone.position.copy(newPos);
+    }
+
+    const hv = Math.hypot(state.velocity.x, state.velocity.z);
+    if(hv > .05){
+      state.yaw = Math.atan2(state.velocity.x, state.velocity.z);
+    }
+
+    drone.rotation.y = state.yaw;
+    drone.rotation.z = -state.velocity.x * 0.035;
+    drone.rotation.x = state.velocity.z * 0.028;
+
+    for(let i=0; i<rotors.length; i++){
+      rotors[i].rotation.y += dt * (46 + hv * 10) * (i % 2 ? 1 : -1);
+    }
+
+    safetyRing.material.color.set(state.collisionWarning ? 0xff4d57 : 0x19e1ff);
+    safetyRing.material.opacity = state.collisionWarning ? .72 : .35;
+
+    state.traveled += old.distanceTo(drone.position);
+    state.battery = Math.max(0, state.battery - dt * (0.014 + hv * 0.002));
+    updateTrail();
+  }
+
+  function updateCamera(dt){
+    state.camDistance = parseFloat(ui.camSlider.value);
+    const target = drone.position.clone();
+
+    let desiredPos = new THREE.Vector3();
+
+    if(state.cameraMode === 0){
+      const back = new THREE.Vector3(
+        -Math.sin(state.yaw) * state.camDistance,
+        state.camDistance * 0.45,
+        -Math.cos(state.yaw) * state.camDistance
+      );
+      desiredPos.copy(target).add(back).add(new THREE.Vector3(0, 3, 0));
+    } else if(state.cameraMode === 1){
+      const a = state.simTime * .18;
+      desiredPos.set(
+        target.x + Math.cos(a) * state.camDistance,
+        target.y + state.camDistance * .55,
+        target.z + Math.sin(a) * state.camDistance
+      );
+    } else {
+      desiredPos.set(target.x, target.y + state.camDistance * 1.55, target.z + .01);
+    }
+
+    camera.position.lerp(desiredPos, 1 - Math.exp(-dt * 4));
+    camera.lookAt(target.x, target.y + 1.0, target.z);
+  }
+
+  function updateLidar(){
+    const origin = new THREE.Vector3(drone.position.x, drone.position.y, drone.position.z);
+    const meshes = obstacles.map(o => o.mesh);
+    state.lidarHits = [];
+    state.lidarCount = 0;
+
+    for(let i=0; i<lidarBeamCount; i++){
+      const a = state.yaw + (i / lidarBeamCount) * Math.PI * 2;
+      tempOrigin.copy(origin);
+      tempDir.set(Math.sin(a), 0, Math.cos(a)).normalize();
+
+      raycaster.set(tempOrigin, tempDir);
+      raycaster.far = state.lidarRange;
+      const hits = raycaster.intersectObjects(meshes, false);
+
+      const baseIndex = i * 6;
+      lidarPositions[baseIndex + 0] = origin.x;
+      lidarPositions[baseIndex + 1] = origin.y;
+      lidarPositions[baseIndex + 2] = origin.z;
+
+      let end = new THREE.Vector3();
+      let hitFlag = false;
+      let dist = state.lidarRange;
+
+      if(hits.length > 0){
+        const p = hits[0].point;
+        end.copy(p);
+        hitFlag = true;
+        dist = hits[0].distance;
+        state.lidarCount++;
+      } else {
+        end.copy(origin).addScaledVector(tempDir, state.lidarRange);
+      }
+
+      lidarPositions[baseIndex + 3] = end.x;
+      lidarPositions[baseIndex + 4] = end.y;
+      lidarPositions[baseIndex + 5] = end.z;
+
+      const c0 = hitFlag ? [1.0, .3, .35] : [.1, .9, 1.0];
+      const c1 = hitFlag ? [1.0, .3, .35] : [.1, .9, 1.0];
+
+      lidarColors[baseIndex + 0] = c0[0];
+      lidarColors[baseIndex + 1] = c0[1];
+      lidarColors[baseIndex + 2] = c0[2];
+      lidarColors[baseIndex + 3] = c1[0];
+      lidarColors[baseIndex + 4] = c1[1];
+      lidarColors[baseIndex + 5] = c1[2];
+
+      state.lidarHits.push({
+        origin: origin.clone(),
+        end: end.clone(),
+        hit: hitFlag,
+        distance: dist,
+        angle: a
+      });
+    }
+
+    lidarGeo.attributes.position.needsUpdate = true;
+    lidarGeo.attributes.color.needsUpdate = true;
+
+    updateSLAMFromLidar();
+  }
+
+  function renderLidarCanvas(){
+    const ctx = lidarCtx;
+    const w = ui.lidarCanvas.width;
+    const h = ui.lidarCanvas.height;
+    const cx = w * 0.5;
+    const cy = h * 0.56;
+    const scale = Math.min(w, h) * 0.38 / Math.max(1, state.lidarRange);
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#081120";
+    ctx.fillRect(0, 0, w, h);
+
+    // grid
+    ctx.strokeStyle = "rgba(255,255,255,.08)";
+    ctx.lineWidth = 1;
+    for(let r=1; r<=4; r++){
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * (Math.min(w,h)*0.08), 0, Math.PI*2);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = "rgba(255,255,255,.18)";
+    ctx.beginPath();
+    ctx.moveTo(cx, 14); ctx.lineTo(cx, h-12);
+    ctx.moveTo(14, cy); ctx.lineTo(w-14, cy);
+    ctx.stroke();
+
+    for(const hit of state.lidarHits){
+      const relx = hit.end.x - drone.position.x;
+      const relz = hit.end.z - drone.position.z;
+      const x = cx + relx * scale;
+      const y = cy - relz * scale;
+
+      ctx.strokeStyle = hit.hit ? "rgba(255,77,87,.90)" : "rgba(25,225,255,.70)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+
+      if(hit.hit){
+        ctx.fillStyle = "#ff4d57";
+        ctx.beginPath();
+        ctx.arc(x, y, 2.2, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+
+    ctx.fillStyle = "#31ff72";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 5, 0, Math.PI*2);
+    ctx.fill();
+
+    // drone heading
+    ctx.strokeStyle = "#ffd54a";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.sin(state.yaw) * 26, cy - Math.cos(state.yaw) * 26);
+    ctx.stroke();
+
+    ctx.fillStyle = "#cfe7ff";
+    ctx.font = "11px Arial";
+    ctx.fillText("N", cx - 4, 12);
+    ctx.fillText("Range " + state.lidarRange.toFixed(0) + " m", 10, h - 10);
+  }
+
+  function renderSLAMCanvas(){
+    const ctx = slamCtx;
+    const w = ui.slamCanvas.width;
+    const h = ui.slamCanvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#0a121d";
+    ctx.fillRect(0, 0, w, h);
+
+    const cellW = w / slamCols;
+    const cellH = h / slamRows;
+
+    for(let gz=0; gz<slamRows; gz++){
+      for(let gx=0; gx<slamCols; gx++){
+        const v = slamGrid[gz * slamCols + gx];
+        if(Math.abs(v) < 0.04) continue;
+
+        if(v > 0){
+          const a = clamp(Math.abs(v) / 1.5, 0.12, 1.0);
+          ctx.fillStyle = `rgba(49,255,114,${a})`;
+        } else {
+          const a = clamp(Math.abs(v) / 1.5, 0.04, 0.45);
+          ctx.fillStyle = `rgba(45,140,255,${a})`;
+        }
+
+        ctx.fillRect(gx * cellW, gz * cellH, Math.ceil(cellW), Math.ceil(cellH));
+      }
+    }
+
+    // drone position
+    const g = worldToGrid(drone.position.x, drone.position.z);
+    ctx.fillStyle = "#ffd54a";
+    ctx.beginPath();
+    ctx.arc((g.gx + .5) * cellW, (g.gz + .5) * cellH, 4, 0, Math.PI*2);
+    ctx.fill();
+
+    // heading arrow
+    ctx.strokeStyle = "#ff9e3d";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo((g.gx + .5) * cellW, (g.gz + .5) * cellH);
+    ctx.lineTo(
+      (g.gx + .5) * cellW + Math.sin(state.yaw) * 16,
+      (g.gz + .5) * cellH + Math.cos(state.yaw) * 16 * -1
+    );
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(255,255,255,.16)";
+    ctx.strokeRect(.5, .5, w-1, h-1);
+
+    ctx.fillStyle = "#d7e8fb";
+    ctx.font = "11px Arial";
+    ctx.fillText("Occupied", 10, 14);
+    ctx.fillStyle = "#31ff72";
+    ctx.fillRect(64, 7, 16, 7);
+    ctx.fillStyle = "#d7e8fb";
+    ctx.fillText("Free", 92, 14);
+    ctx.fillStyle = "#2a8cff";
+    ctx.fillRect(120, 7, 16, 7);
+  }
+
+  function paletteDepth(t){
+    // simple blue-to-yellow palette
+    t = clamp(t, 0, 1);
+    const r = Math.floor(255 * Math.pow(t, 0.8));
+    const g = Math.floor(255 * (0.4 + 0.6 * t));
+    const b = Math.floor(255 * (1 - t) * 0.9);
+    return [r, g, b];
+  }
+
+
+  function renderRLCanvas(){
+    const ctx = rlCtx;
+    const w = ui.rlCanvas.width;
+    const h = ui.rlCanvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#081120";
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.fillStyle = "#d7e8fb";
+    ctx.font = "11px Arial";
+    ctx.fillText("Policy: " + (state.rlEnabled ? "DQN-like navigation" : "Geometric planner"), 10, 14);
+    ctx.fillText("Selected: " + state.rlAction + "   Reward: " + state.rlReward.toFixed(2), 10, h - 10);
+
+    const values = state.rlQ || [0,0,0,0,0,0];
+    const maxAbs = Math.max(1, ...values.map(v => Math.abs(v)));
+    const baseY = h - 28;
+    const barW = (w - 28) / values.length;
+
+    for(let i=0; i<values.length; i++){
+      const v = values[i];
+      const norm = Math.abs(v) / maxAbs;
+      const x = 12 + i * barW;
+      const bh = norm * 72;
+
+      ctx.fillStyle = RL_ACTIONS[i] === state.rlAction && state.rlEnabled ? "#ff9e3d" : (v >= 0 ? "#31ff72" : "#ff4d57");
+      ctx.fillRect(x + 5, baseY - bh, barW - 10, bh);
+
+      ctx.fillStyle = "#cfe7ff";
+      ctx.font = "9px Arial";
+      ctx.save();
+      ctx.translate(x + barW * 0.5, baseY + 10);
+      ctx.rotate(-Math.PI / 5);
+      ctx.textAlign = "right";
+      ctx.fillText(RL_ACTIONS[i], 0, 0);
+      ctx.restore();
+
+      ctx.fillStyle = "rgba(255,255,255,.75)";
+      ctx.font = "9px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(v.toFixed(1), x + barW * 0.5, baseY - bh - 4);
+      ctx.textAlign = "start";
+    }
+
+    ctx.strokeStyle = "rgba(255,255,255,.16)";
+    ctx.strokeRect(.5, .5, w - 1, h - 1);
+  }
+
+  function renderDepthCanvas(){
+    const ctx = depthCtx;
+    const w = ui.depthCanvas.width;
+    const h = ui.depthCanvas.height;
+    const img = ctx.createImageData(w, h);
+
+    const cols = 60;
+    const rows = 36;
+    const cw = w / cols;
+    const ch = h / rows;
+    const meshes = obstacles.map(o => o.mesh);
+
+    ctx.fillStyle = "#081120";
+    ctx.fillRect(0, 0, w, h);
+
+    // camera-like sensor origin slightly ahead of drone
+    const origin = new THREE.Vector3(
+      drone.position.x + Math.sin(state.yaw) * 0.5,
+      drone.position.y + 0.15,
+      drone.position.z + Math.cos(state.yaw) * 0.5
+    );
+
+    const hfov = THREE.MathUtils.degToRad(70);
+    const vfov = THREE.MathUtils.degToRad(36);
+    const maxRange = 22;
+
+    for(let j=0; j<rows; j++){
+      for(let i=0; i<cols; i++){
+        const u = (i / (cols - 1) - 0.5) * hfov;
+        const v = (0.5 - j / (rows - 1)) * vfov;
+
+        const dir = new THREE.Vector3(
+          Math.sin(state.yaw + u) * Math.cos(v),
+          v * 0.85,
+          Math.cos(state.yaw + u) * Math.cos(v)
+        ).normalize();
+
+        raycaster.set(origin, dir);
+        raycaster.far = maxRange;
+        const hits = raycaster.intersectObjects(meshes, false);
+
+        let d = maxRange;
+        if(hits.length > 0) d = hits[0].distance;
+
+        const t = 1 - d / maxRange;
+        const col = paletteDepth(t);
+
+        ctx.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
+        ctx.fillRect(i * cw, j * ch, Math.ceil(cw), Math.ceil(ch));
+      }
+    }
+
+    // overlay text
+    ctx.strokeStyle = "rgba(255,255,255,.18)";
+    ctx.strokeRect(.5, .5, w - 1, h - 1);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "11px Arial";
+    ctx.fillText("Near", 10, 14);
+    ctx.fillText("Far", w - 24, 14);
+
+    // center reticle
+    ctx.strokeStyle = "rgba(255,255,255,.65)";
+    ctx.beginPath();
+    ctx.moveTo(w/2 - 8, h/2); ctx.lineTo(w/2 + 8, h/2);
+    ctx.moveTo(w/2, h/2 - 8); ctx.lineTo(w/2, h/2 + 8);
+    ctx.stroke();
+  }
+
+  function resetSimulation(){
+    state.running = true;
+    state.mode = "HOLD";
+    state.simTime = 0;
+    state.realStart = performance.now();
+    state.waypointIndex = 0;
+    state.routeIndex = 0;
+    waypointVisited = new Array(waypoints.length).fill(false);
+    state.cameraMode = 0;
+    state.battery = 100;
+    state.traveled = 0;
+    state.yaw = 0;
+    state.velocity.set(0,0,0);
+    state.rlAction = state.rlEnabled ? "KEEP" : "GEOM";
+    state.rlReward = 0;
+    state.rlEpisodeReward = 0;
+    state.rlQ = [0, 0, 0, 0, 0, 0];
+    state.d2dPacketSeq = 0;
+    state.d2dLastBroadcastTime = 0;
+    state.d2dLinks = [
+      {rssi:-62, latency:16, pdr:100, age:0, status:"OK"},
+      {rssi:-64, latency:18, pdr:100, age:0, status:"OK"}
+    ];
+    drone.position.set(homePoint.x, homePoint.y, homePoint.z);
+    drone.rotation.set(0,0,0);
+
+    for(const f of followers){
+      const formationTarget = drone.position.clone().add(rotateFormationOffset(f.offset, state.yaw));
+      f.group.position.copy(formationTarget);
+      f.group.rotation.set(0, state.yaw, 0);
+      f.velocity.set(0,0,0);
+      f.label.position.copy(f.group.position).add(new THREE.Vector3(0,1.25,0));
+    }
+
+    trailCount = 0;
+    trailGeo.setDrawRange(0, 0);
+    ui.log.innerHTML = "";
+    resetSLAM();
+    setSwarmVisible(state.swarmEnabled);
+    updateTelemetryModePanels();
+    log("Simulator reset. Mission ready. Select Single Drone or Swarm Drone mode.");
+  }
+
+
+  function getActiveTargetLabel(){
+    const g = routeGoals[state.routeIndex];
+    if(!g) return "DONE";
+    return g.label.replace("BYPASS-", "B");
+  }
+
+  function getNavigationCommandLabel(){
+    if(state.rlEnabled){
+      return "DRL:" + state.rlAction;
+    }
+    if(state.mode === "MISSION") return "FOLLOW_ROUTE";
+    if(state.mode === "MANUAL") return "MANUAL";
+    return "HOLD";
+  }
+
+  function updateD2DTelemetry(dtForTelemetry=0.016){
+    const packetPeriod = 0.16; // about 6.25 Hz telemetry broadcast
+    const now = state.simTime;
+
+    if(state.swarmEnabled && now - state.d2dLastBroadcastTime >= packetPeriod){
+      state.d2dLastBroadcastTime = now;
+      state.d2dPacketSeq++;
+
+      for(let i=0; i<followers.length; i++){
+        const f = followers[i];
+        const d = drone.position.distanceTo(f.group.position);
+        const qualityLoss = clamp((d - 4.0) * 1.7, 0, 40);
+        const oscillation = 3.5 * Math.sin(now * 1.7 + i * 1.4);
+
+        state.d2dLinks[i].rssi = clamp(-51 - qualityLoss + oscillation, -92, -42);
+        state.d2dLinks[i].latency = clamp(10 + d * 2.8 + Math.abs(Math.sin(now * 2.4 + i)) * 10, 8, 110);
+        state.d2dLinks[i].pdr = clamp(100 - Math.max(0, d - 6.0) * 2.1 - Math.max(0, state.d2dLinks[i].latency - 45) * 0.35, 55, 100);
+        state.d2dLinks[i].age = 0;
+
+        if(state.d2dLinks[i].pdr < 72 || state.d2dLinks[i].rssi < -82){
+          state.d2dLinks[i].status = "DEGRADED";
+        } else {
+          state.d2dLinks[i].status = "OK";
+        }
+      }
+    } else if(state.swarmEnabled){
+      for(let i=0; i<state.d2dLinks.length; i++){
+        state.d2dLinks[i].age = Math.min(999, (now - state.d2dLastBroadcastTime) * 1000);
+      }
+    }
+  }
+
+  function updateTelemetryModePanels(){
+    if(state.swarmEnabled){
+      ui.singleTelemetryCard.classList.add("hidden-card");
+      ui.swarmTelemetryCard.classList.remove("hidden-card");
+    } else {
+      ui.singleTelemetryCard.classList.remove("hidden-card");
+      ui.swarmTelemetryCard.classList.add("hidden-card");
+    }
+
+    const activeLabel = getActiveTargetLabel();
+    const command = getNavigationCommandLabel();
+    const yawDeg = ((state.yaw * 180 / Math.PI + 360) % 360).toFixed(0);
+
+    // Single-agent telemetry.
+    ui.singleAgentId.textContent = "UAV-L";
+    ui.singleNavState.textContent = `${state.mode} / ${command}`;
+    ui.singlePose.textContent = `${drone.position.x.toFixed(1)}, ${drone.position.y.toFixed(1)}, ${drone.position.z.toFixed(1)}`;
+    ui.singleVelocity.textContent = `${state.velocity.x.toFixed(1)}, ${state.velocity.y.toFixed(1)}, ${state.velocity.z.toFixed(1)}`;
+    ui.singleTarget.textContent = `${activeLabel} / yaw ${yawDeg}°`;
+    ui.singleSensor.textContent = `LiDAR ${state.lidarCount} hits / ${state.lidarRange.toFixed(0)} m`;
+
+    // Swarm D2D telemetry.
+    ui.swarmLeaderPacket.textContent = `PKT-${String(state.d2dPacketSeq).padStart(4, "0")}`;
+    ui.swarmBroadcastState.textContent = `${state.mode} / ${state.linkQuality.toFixed(0)}% link`;
+    ui.swarmLeaderPose.textContent = `${drone.position.x.toFixed(1)}, ${drone.position.y.toFixed(1)}, ${drone.position.z.toFixed(1)}`;
+    ui.swarmCommand.textContent = `${command} → ${activeLabel}`;
+
+    const ids = [
+      {prefix:"f1", link:state.d2dLinks[0], follower:followers[0]},
+      {prefix:"f2", link:state.d2dLinks[1], follower:followers[1]}
+    ];
+
+    for(const item of ids){
+      const p = item.prefix;
+      const l = item.link;
+      const f = item.follower;
+      ui[p + "Rssi"].textContent = `${l.rssi.toFixed(0)} dBm`;
+      ui[p + "Latency"].textContent = `${l.latency.toFixed(0)} ms`;
+      ui[p + "Pdr"].textContent = `${l.pdr.toFixed(0)}%`;
+      ui[p + "Age"].textContent = `${l.age.toFixed(0)} ms`;
+      ui[p + "Error"].textContent = `${f.error.toFixed(1)} m`;
+      ui[p + "Status"].textContent = l.status;
+      ui[p + "Status"].style.color = l.status === "OK" ? "#31ff72" : "#ffd54a";
+    }
+  }
+
+  function updateUI(){
+    const elapsedReal = (performance.now() - state.realStart) / 1000;
+    const speed = state.velocity.length();
+    const clear = nearestObstacleClearance(drone.position);
+    const risk = clear < 1.8 ? "HIGH" : clear < 3.5 ? "MED" : "LOW";
+
+    ui.realTime.textContent = fmtTime(elapsedReal);
+    ui.simTime.textContent = fmtTime(state.simTime);
+    ui.pauseIcon.textContent = state.running ? "Ⅱ" : "▶";
+    ui.modeMetric.textContent = state.mode;
+    const visitedCount = waypointVisited.filter(Boolean).length;
+    const activeGoal = routeGoals[state.routeIndex];
+    const targetLabel = activeGoal ? activeGoal.label : "DONE";
+    ui.wpMetric.textContent = `${visitedCount}/${waypoints.length} ${targetLabel.replace("BYPASS-", "B")}`;
+    ui.altMetric.textContent = `${drone.position.y.toFixed(1)} m`;
+    ui.speedMetric.textContent = `${speed.toFixed(1)} m/s`;
+    ui.clearanceMetric.textContent = clear === Infinity ? "--" : `${clear.toFixed(1)} m`;
+    ui.batteryMetric.textContent = `${state.battery.toFixed(0)}%`;
+    ui.swarmMetric.textContent = state.swarmEnabled ? "SWARM" : "SINGLE";
+    ui.formationMetric.textContent = state.swarmEnabled ? `${state.formationError.toFixed(1)} m` : "--";
+    ui.rlMetric.textContent = state.rlEnabled ? "DQN" : "OFF";
+    ui.rlActionMetric.textContent = state.rlAction;
+    ui.rewardMetric.textContent = state.rlEnabled ? state.rlReward.toFixed(2) : "0.00";
+    ui.lidarMetric.textContent = `${state.lidarCount}`;
+    updateTelemetryModePanels();
+    ui.mapMetric.textContent = `${mappedPercent().toFixed(0)}%`;
+
+    ui.cameraMetric.textContent = ["FOLLOW", "ORBIT", "TOP"][state.cameraMode];
+    ui.riskMetric.textContent = risk;
+    ui.riskMetric.className = "v " + (risk === "HIGH" ? "status-bad" : risk === "MED" ? "status-warn" : "status-good");
+
+    ui.posHud.textContent = `${drone.position.x.toFixed(1)}, ${drone.position.z.toFixed(1)}`;
+    ui.altHud.textContent = `${drone.position.y.toFixed(1)} m`;
+    ui.velHud.textContent = `${speed.toFixed(1)} m/s`;
+    ui.yawHud.textContent = `${((state.yaw * 180 / Math.PI + 360) % 360).toFixed(0)}°`;
+    ui.distHud.textContent = `${state.traveled.toFixed(1)} m`;
+
+    ui.speedVal.textContent = parseFloat(ui.speedSlider.value).toFixed(1);
+    ui.altVal.textContent = parseFloat(ui.altSlider.value).toFixed(1);
+    ui.lidarVal.textContent = parseFloat(ui.lidarSlider.value).toFixed(0);
+    ui.camVal.textContent = parseFloat(ui.camSlider.value).toFixed(0);
+  }
+
+  // Buttons
+  ui.missionBtn.onclick = () => {
+    if(waypointVisited.every(Boolean) || state.routeIndex >= routeGoals.length){
+      waypointVisited = new Array(waypoints.length).fill(false);
+      state.waypointIndex = 0;
+      state.routeIndex = 0;
+      drone.position.set(homePoint.x, homePoint.y, homePoint.z);
+      trailCount = 0;
+      trailGeo.setDrawRange(0, 0);
+      log("Mission restarted from HOME.");
+    }
+
+    state.mode = "MISSION";
+    const g = routeGoals[state.routeIndex];
+    log("Autonomous waypoint mission started. Target: " + (g ? g.label : "DONE") + ".");
+  };
+
+  ui.manualBtn.onclick = () => {
+    state.mode = "MANUAL";
+    log("Manual control enabled.");
+  };
+
+  ui.swarmBtn.onclick = () => {
+    state.swarmEnabled = !state.swarmEnabled;
+    ui.swarmBtn.textContent = state.swarmEnabled ? "Swarm ON" : "Swarm OFF";
+    ui.swarmBtn.className = state.swarmEnabled ? "good" : "";
+    setSwarmVisible(state.swarmEnabled);
+
+    if(state.swarmEnabled){
+      state.d2dPacketSeq = 0;
+      state.d2dLastBroadcastTime = state.simTime;
+      for(const f of followers){
+        const target = drone.position.clone().add(rotateFormationOffset(f.offset, state.yaw));
+        f.group.position.copy(target);
+        f.group.rotation.set(0, state.yaw, 0);
+        f.velocity.set(0,0,0);
+      }
+      log("Swarm mode enabled: leader plus two V-formation follower drones.");
+    } else {
+      log("Single-drone mode enabled: follower drones hidden.");
+    }
+  };
+
+  ui.rlBtn.onclick = () => {
+    state.rlEnabled = !state.rlEnabled;
+    ui.rlBtn.textContent = state.rlEnabled ? "DRL ON" : "DRL OFF";
+    ui.rlBtn.className = state.rlEnabled ? "warn" : "";
+    state.rlAction = state.rlEnabled ? "KEEP" : "GEOM";
+    state.rlReward = 0;
+    state.rlEpisodeReward = 0;
+    log(state.rlEnabled
+      ? "Deep reinforcement navigation enabled: DQN-like policy controls speed, yaw bias, climb and safe mode."
+      : "Deep reinforcement navigation disabled: geometric waypoint planner active."
+    );
+  };
+
+  ui.slamResetBtn.onclick = resetSLAM;
+  ui.resetBtn.onclick = resetSimulation;
+
+  ui.cameraBtn.onclick = () => {
+    state.cameraMode = (state.cameraMode + 1) % 3;
+    log("Camera mode: " + ["Follow", "Orbit", "Top"][state.cameraMode] + ".");
+  };
+
+  ui.pauseIcon.onclick = () => {
+    state.running = !state.running;
+    log(state.running ? "Simulation resumed." : "Simulation paused.");
+  };
+
+  function onResize(){
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+
+  window.addEventListener("resize", onResize);
+  onResize();
+
+  function animate(){
+    requestAnimationFrame(animate);
+
+    const dtRaw = Math.min(clock.getDelta(), 0.045);
+    const dt = state.running ? dtRaw : 0;
+
+    if(state.running){
+      state.simTime += dt;
+      updateDrone(dt);
+      updateSwarmFollowers(dt);
+      updateD2DTelemetry(dt);
+      updateWaypointsVisual();
+      updateLidar();
+    }
+
+    for(const label of wpSprites){
+      label.lookAt(camera.position);
+    }
+
+    updateCamera(Math.max(dtRaw, 0.016));
+    updateUI();
+    renderLidarCanvas();
+    renderSLAMCanvas();
+    renderRLCanvas();
+    renderDepthCanvas();
+    renderer.render(scene, camera);
+  }
+
+  resetSimulation();
+  animate();
+})();
+</script>
+</body>
+</html>
